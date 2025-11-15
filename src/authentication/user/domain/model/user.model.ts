@@ -17,7 +17,7 @@ export type UserPrimitives = {
 };
 
 export class User {
-    constructor(
+    private constructor(
         public readonly id: Uuid,
         public readonly email: Email,
         public readonly username: Username,
@@ -30,6 +30,57 @@ export class User {
         public readonly updatedAt: UtcDate,
     ) { }
 
+    public static create(
+        email: Email,
+        username: Username,
+        firstName: Name,
+        lastName: LastName,
+        password: Password,
+        subscriptionPlanId?: Uuid,
+    ): User {
+        return new User(
+            Uuid.create(),
+            email,
+            username,
+            firstName,
+            lastName,
+            BooleanVO.create(true),
+            subscriptionPlanId || null,
+            password,
+            UtcDate.now(),
+            UtcDate.now(),
+        );
+    }
+
+    /**
+     * Reconstruct user from persistence (hydration)
+     */
+    public static fromPrimitives(
+        id: Uuid,
+        email: Email,
+        username: Username,
+        firstName: Name,
+        lastName: LastName,
+        isActive: BooleanVO,
+        subscriptionPlanId: Uuid | null,
+        password: Password,
+        createdAt: UtcDate,
+        updatedAt: UtcDate,
+    ): User {
+        return new User(
+            id,
+            email,
+            username,
+            firstName,
+            lastName,
+            isActive,
+            subscriptionPlanId,
+            password,
+            createdAt,
+            updatedAt,
+        );
+    }
+
     public toPrimitives(): UserPrimitives {
         return {
             id: this.id.getValue,
@@ -38,7 +89,7 @@ export class User {
             firstName: this.firstName.getValue,
             lastName: this.lastName.getValue,
             isActive: this.isActive.getValue,
-            subscriptionPlanId: this.subscriptionPlanId ? this.subscriptionPlanId.getValue : null,
+            subscriptionPlanId: this.subscriptionPlanId?.getValue ?? null,
             password: this.password.getPassword,
             createdAt: this.createdAt.getValue,
             updatedAt: this.updatedAt.getValue,
