@@ -1,98 +1,233 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Pro Alt SCRP - NestJS Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## 📋 Descripción
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Backend API RESTful construido con **NestJS** siguiendo principios de **Domain-Driven Design (DDD)** y **Arquitectura Hexagonal**. El proyecto implementa una capa de aplicación desacoplada usando un patrón **UseCaseBus** para gestionar Commands y Queries.
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🏗️ Arquitectura
 
-## Project setup
+### **Domain-Driven Design (DDD) + Hexagonal Architecture**
 
-```bash
-$ npm install
+El proyecto sigue una estructura modular por dominio con separación clara de responsabilidades:
+
+```
+src/
+├── authentication/           # Módulo de dominio
+│   └── user/
+│       ├── application/      # Casos de uso (Commands & Queries)
+│       ├── domain/           # Lógica de negocio pura
+│       │   ├── model/        # Entidades de dominio
+│       │   ├── repositories/ # Interfaces (Ports)
+│       │   └── value-objects/
+│       └── infrastructure/   # Adaptadores
+│           ├── persistence/  # TypeORM entities & repos
+│           └── rest/         # Controllers & DTOs
+├── config/                   # Configuración global
+│   └── database/             # TypeORM config & migrations
+└── shared/                   # Módulos compartidos
+    ├── common/               # Value Objects, excepciones
+    └── use-case-bus/         # Bus de casos de uso
 ```
 
-## Compile and run the project
+### **¿Por qué esta arquitectura?**
 
-```bash
-# development
-$ npm run start
+### **Capas del proyecto:**
 
-# watch mode
-$ npm run start:dev
+1. **Domain (Dominio)**: Lógica de negocio pura, sin dependencias externas
+   - Entities, Value Objects, Repository interfaces, Domain Exceptions
 
-# production mode
-$ npm run start:prod
+2. **Application (Aplicación)**: Orquestación de casos de uso
+   - Commands (escritura), Queries (lectura), Use Case Handlers
+
+3. **Infrastructure (Infraestructura)**: Detalles técnicos
+   - Persistencia (TypeORM), REST (Controllers), Adapters externos
+
+### **¿Por qué DDD con Clean Architecture?**
+
+✅ **Dominio independiente**: La lógica de negocio no conoce NestJS ni TypeORM  
+✅ **Testabilidad**: Cada capa puede probarse aisladamente con mocks  
+✅ **Escalabilidad**: Nuevos módulos de dominio sin afectar existentes  
+✅ **Mantenibilidad**: Cambios en infraestructura no afectan el dominio  
+✅ **Claridad**: El código refleja el lenguaje del negocio (Ubiquitous Language)
+
+---
+
+## 🚀 UseCaseBus Pattern
+
+### **¿Qué es?**
+
+Un bus centralizado que ejecuta casos de uso (Commands/Queries) sin exponer la implementación de los handlers.
+
+### **¿Por qué usarlo?**
+
+- **Desacoplamiento**: Controllers no conocen handlers directamente
+- **Seguridad**: Previene acceso directo a lógica de negocio
+- **Flexibilidad**: Fácil cambiar implementaciones sin tocar controllers
+- **Type-safe**: Inferencia de tipos automática con TypeScript
+
+### **Uso**
+
+```typescript
+// 1. Definir el caso de uso
+export class GetUserById implements IUseCase {
+  constructor(public readonly userId: string) {}
+}
+
+// 2. Crear el handler
+@UseCaseHandler(GetUserById)
+export class GetUserByIdUseCase implements IUseCaseHandler<GetUserById> {
+  async execute(query: GetUserById) {
+    // Lógica aquí
+  }
+}
+
+// 3. Registrar en el módulo
+@Module({
+  imports: [UseCaseModule.register(...UseCases)],
+  providers: [...UseCases]
+})
+export class UserModule {}
+
+// 4. Ejecutar desde el controller
+@Get(':id')
+async getUser(@Param('id') id: string) {
+  return this.useCaseBus.execute(new GetUserById(id));
+}
 ```
 
-## Run tests
+---
+
+## 🗄️ Base de Datos
+
+### **TypeORM con Naming Strategy personalizado**
+
+- Convención: `UPPERCASE_SNAKE_CASE` para todas las columnas y tablas
+- Migrations automáticas por módulo de dominio
+- Schemas separados por contexto (ej: `AUTHENTICATION`)
+
+### **Crear Migraciones**
 
 ```bash
-# unit tests
-$ npm run test
+# Windows
+npm run windows:migration:create --module=authentication --api=user --name=create-users-table
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# Linux/Mac
+npm run migration:create --module=authentication --api=user --name=create-users-table
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### **Ejecutar Migraciones**
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Windows
+npm run windows:migration:run
+
+# Linux/Mac
+npm run migration:run
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### **Revertir Migraciones**
 
-## Resources
+```bash
+# Windows
+npm run windows:migration:rollback
 
-Check out a few resources that may come in handy when working with NestJS:
+# Linux/Mac
+npm run migration:rollback
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+Las migraciones se generan en:  
+`src/{module}/{api}/infrastructure/persistence/migrations/`
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## 🛠️ Instalación y Ejecución
 
-## Stay in touch
+### **Instalación**
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+npm install
+```
 
-## License
+### **Variables de Entorno**
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Crear archivo `.env`:
+
+```env
+API_PORT=3000
+DATABASE_TYPE=postgres
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=postgres
+DATABASE_NAME=pro_alt_db
+```
+
+### **Ejecutar**
+
+```bash
+# Desarrollo
+npm run start:dev
+
+# Producción
+npm run build
+npm run start:prod
+```
+
+---
+
+## 📦 Módulos Principales
+
+### **UseCaseBus**
+Bus global para ejecutar casos de uso con auto-registro de handlers.
+
+### **Common**
+Value Objects reutilizables: `Uuid`, `Email`, `Password`, `Pagination`, etc.
+
+### **Authentication**
+Módulo de autenticación con gestión de usuarios (en desarrollo).
+
+---
+
+## 🧪 Testing
+
+```bash
+# Unit tests
+npm run test
+
+# E2E tests
+npm run test:e2e
+
+# Coverage
+npm run test:cov
+```
+
+---
+
+## 📝 Convenciones
+
+- **Casos de uso**: Separados en `commands/` y `queries/`
+- **Nomenclatura DB**: `UPPERCASE_SNAKE_CASE`
+- **Imports**: Usar alias `@shared` para módulos compartidos
+- **Value Objects**: Inmutables, validación en constructor
+- **Excepciones**: Personalizadas por dominio
+
+---
+
+## 🤝 Contribución
+
+1. Crear feature branch desde `main`
+2. Seguir estructura DDD por módulo
+3. Tests obligatorios para casos de uso
+4. Commit messages: [Conventional Commits](https://www.conventionalcommits.org/)
+
+---
+
+## 📄 Licencia
+
+MIT License 2.0
+
+---
+
+**Built with ❤️ using NestJS, TypeScript, and DDD principles**
