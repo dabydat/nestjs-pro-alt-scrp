@@ -4,7 +4,7 @@ import * as fs from 'fs';
 
 export const setupSwagger = (app: INestApplication, serverUrl: string): OpenAPIObject => {
     const config = new DocumentBuilder()
-        .setTitle('API')
+        .setTitle('PRO-ALT-SCRP API')
         .setDescription('An API that is part of...',)
         .setVersion('1.0.0')
         .setExternalDoc('API Documentation', '/swagger-spec.json')
